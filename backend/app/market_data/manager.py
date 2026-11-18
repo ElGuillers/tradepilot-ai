@@ -20,8 +20,10 @@ class MarketDataManager:
 
     def _get_provider_for_market(self, market: str, symbol: str = "") -> BaseMarketDataProvider:
         sym = symbol.upper()
-        if sym in ["PAXGUSDT", "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "NEARUSDT", "DOTUSDT"]:
+        # High-volume liquid crypto pairs -> Binance
+        if sym in ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "NEARUSDT", "DOTUSDT"]:
             return self.binance_provider
+        # Gold (PAXGUSDT / XAUUSD), stocks, indices, forex -> Yahoo Finance (real exchange liquidity)
         return self.stocks_provider
 
     async def get_candles(
@@ -73,7 +75,7 @@ class MarketDataManager:
 
         # Execute providers concurrently
         async def fetch_binance():
-            if not market or market.lower() in ["crypto", "commodities"]:
+            if not market or market.lower() in ["crypto"]:
                 try:
                     items = await self.binance_provider.get_overview()
                     return [i for i in items if i.market.lower() == market.lower()] if market else items
@@ -82,7 +84,7 @@ class MarketDataManager:
             return []
 
         async def fetch_stocks():
-            if not market or market.lower() in ["stocks", "indices", "forex"]:
+            if not market or market.lower() in ["stocks", "indices", "forex", "commodities"]:
                 try:
                     items = await self.stocks_provider.get_overview()
                     return [i for i in items if i.market.lower() == market.lower()] if market else items

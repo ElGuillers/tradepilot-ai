@@ -81,19 +81,18 @@ export const ChartPage: React.FC<ChartPageProps> = ({
     return () => window.removeEventListener('tradepilot_favorites_updated', syncFav);
   }, [symbol]);
 
-  // Check if Gold Spot (PAXG)
-  const isGoldSpot = symbol.toUpperCase() === 'PAXGUSDT';
+  // Check if Gold Spot (PAXG or XAUUSD)
+  const isGoldSpot = symbol.toUpperCase() === 'PAXGUSDT' || symbol.toUpperCase() === 'XAUUSD';
 
-  // Auto-detect market from symbol name if not explicitly passed
+  // Auto-detect market from symbol name if not explicitly passed (Gold, Stocks, Forex use high-frequency REST updates)
   const isStockOrForex =
-    !isGoldSpot && (
-      (market !== 'crypto' && market !== 'commodities') ||
-      ['AAPL', 'MSFT', 'NVDA', 'SPY', 'QQQ', 'SPX', 'NDX'].includes(symbol.toUpperCase()) ||
-      symbol.includes('/') ||
-      ['EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD'].includes(symbol.toUpperCase())
-    );
+    isGoldSpot ||
+    (market !== 'crypto' && market !== 'commodities') ||
+    ['AAPL', 'MSFT', 'NVDA', 'SPY', 'QQQ', 'SPX', 'NDX'].includes(symbol.toUpperCase()) ||
+    symbol.includes('/') ||
+    ['EURUSD', 'GBPUSD', 'USDJPY', 'XAUUSD'].includes(symbol.toUpperCase());
 
-  const currentMarket = isGoldSpot ? 'crypto' : isStockOrForex ? (symbol.includes('/') || symbol.endsWith('USD') ? 'forex' : 'stocks') : 'crypto';
+  const currentMarket = isGoldSpot ? 'commodities' : isStockOrForex ? (symbol.includes('/') || symbol.endsWith('USD') ? 'forex' : 'stocks') : 'crypto';
 
   const styleTimeframes: Record<TradingStyle, Timeframe[]> = {
     scalping: ['1m', '3m', '5m'],

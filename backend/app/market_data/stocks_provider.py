@@ -20,6 +20,7 @@ CURATED_STOCKS = [
     ("QQQ", "Invesco QQQ Trust", "indices"),
     ("EUR/USD", "Euro / US Dollar", "forex"),
     ("GBP/USD", "British Pound / US Dollar", "forex"),
+    ("PAXGUSDT", "Oro Spot 1:1 ($/oz)", "commodities"),
 ]
 
 def normalize_yahoo_symbol(sym: str) -> str:
@@ -31,6 +32,9 @@ def normalize_yahoo_symbol(sym: str) -> str:
         "AUDUSD": "AUDUSD=X",
         "USDCAD": "USDCAD=X",
         "XAUUSD": "GC=F",
+        "PAXGUSDT": "GC=F",
+        "PAXG": "GC=F",
+        "GOLD": "GC=F",
     }
     return mapping.get(s, sym.upper())
 
@@ -42,8 +46,8 @@ TF_MAP: Dict[str, Tuple[str, str]] = {
     "15m": ("15m", "5d"),
     "30m": ("30m", "1mo"),
     "1h": ("60m", "1mo"),
-    "4h": ("60m", "3mo"),
-    "1d": ("1d", "6mo"),
+    "4h": ("4h", "3mo"),
+    "1d": ("1d", "1y"),
 }
 
 

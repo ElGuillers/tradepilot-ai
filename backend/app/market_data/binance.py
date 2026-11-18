@@ -7,12 +7,11 @@ from app.schemas.market_data import Candle, AssetInfo, MarketOverviewItem
 
 logger = logging.getLogger(__name__)
 
-# Standard pairs for fast monitoring (including Gold PAXGUSDT)
+# Standard pairs for fast monitoring
 CURATED_PAIRS = [
     ("BTCUSDT", "BTC", "USDT"),
     ("ETHUSDT", "ETH", "USDT"),
     ("SOLUSDT", "SOL", "USDT"),
-    ("PAXGUSDT", "PAXG", "USDT"),  # Oro físico respaldado 1:1 (Pax Gold)
     ("BNBUSDT", "BNB", "USDT"),
     ("XRPUSDT", "XRP", "USDT"),
     ("ADAUSDT", "ADA", "USDT"),

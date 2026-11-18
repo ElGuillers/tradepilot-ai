@@ -7,7 +7,7 @@ from app.alerts.manager import alert_manager
 logger = logging.getLogger("tradepilot.scanner")
 
 SCAN_SYMBOLS = [
-    ("PAXGUSDT", "crypto"),    # Oro Spot 1:1 (XAUUSD)
+    ("PAXGUSDT", "commodities"), # Oro Spot 1:1 (XAUUSD / CME GC=F)
     ("BTCUSDT", "crypto"),     # Bitcoin (BTCUSD)
     ("ETHUSDT", "crypto"),     # Ethereum (ETHUSD)
     ("SOLUSDT", "crypto"),     # Solana (SOLUSD)

@@ -87,11 +87,16 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       rightPriceScale: {
         borderColor: '#334155',
         autoScale: true,
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.15,
+        },
       },
       timeScale: {
         borderColor: '#334155',
         timeVisible: !isDailyOrWeekly,
         secondsVisible: false,
+        rightOffset: 5,
       },
       localization: {
         locale: 'es-ES',
@@ -126,7 +131,23 @@ export const TradingChart: React.FC<TradingChartProps> = ({
     const volumeData: HistogramData[] = [];
     const seenTimes = new Set<number>();
 
-    for (const c of candles) {
+    // Sort strictly chronological ascending
+    const sortedCandles = [...candles].sort((a, b) => a.timestamp - b.timestamp);
+
+    for (const c of sortedCandles) {
+      if (
+        c.open <= 0 ||
+        c.high <= 0 ||
+        c.low <= 0 ||
+        c.close <= 0 ||
+        isNaN(c.open) ||
+        isNaN(c.high) ||
+        isNaN(c.low) ||
+        isNaN(c.close)
+      ) {
+        continue;
+      }
+
       const timeInSec = Math.floor(c.timestamp / 1000);
       if (seenTimes.has(timeInSec)) continue;
       seenTimes.add(timeInSec);
@@ -134,14 +155,14 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       formattedCandles.push({
         time: timeInSec as any,
         open: c.open,
-        high: c.high,
-        low: c.low,
+        high: Math.max(c.high, c.open, c.close),
+        low: Math.min(c.low, c.open, c.close),
         close: c.close,
       });
 
       volumeData.push({
         time: timeInSec as any,
-        value: c.volume,
+        value: Math.max(0, c.volume || 0),
         color: c.close >= c.open ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)',
       });
     }
@@ -175,13 +196,15 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       });
     }
 
-    // Volume series
+    // Volume series (overlay at bottom without projecting rogue labels on the price scale)
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: '#26a69a',
       priceFormat: {
         type: 'volume',
       },
       priceScaleId: '',
+      priceLineVisible: false,
+      lastValueVisible: false,
     });
     volumeSeries.priceScale().applyOptions({
       scaleMargins: {
@@ -364,14 +387,14 @@ export const TradingChart: React.FC<TradingChartProps> = ({
       candleSeriesRef.current.update({
         time: timeInSec as any,
         open: liveCandle.open,
-        high: liveCandle.high,
-        low: liveCandle.low,
+        high: Math.max(liveCandle.high, liveCandle.open, liveCandle.close),
+        low: Math.min(liveCandle.low, liveCandle.open, liveCandle.close),
         close: liveCandle.close,
       });
 
       volumeSeriesRef.current.update({
         time: timeInSec as any,
-        value: liveCandle.volume,
+        value: Math.max(0, liveCandle.volume || 0),
         color: liveCandle.close >= liveCandle.open ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)',
       });
     } catch (err) {
