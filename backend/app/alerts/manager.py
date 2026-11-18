@@ -175,11 +175,24 @@ class AlertManager:
 
         rr_ratio = signal.risk_reward if signal and signal.risk_reward > 0 else 1.5
 
+        duration_map = {
+            "1m": "~3 a 8 minutos (Scalping ultra-rápido)",
+            "5m": "~15 a 30 minutos (Scalping)",
+            "15m": "~30 a 60 minutos (2 a 4 velas)",
+            "30m": "~1 a 2 horas (Intradía)",
+            "1h": "~2 a 6 horas (Day Trading / 2 a 6 velas)",
+            "4h": "~1 a 3 días (Swing Trading)",
+            "1d": "~3 a 7 días (Posicional)"
+        }
+        duration_est = duration_map.get(notif.timeframe, "~30 a 60 minutos")
+        max_holding_rule = "60 min" if notif.timeframe == "15m" else ("6 horas" if notif.timeframe == "1h" else "24 horas")
+
         lines = [
             f"{action_header} | <b>TradePilot AI</b>",
             "━━━━━━━━━━━━━━━━━━━━━",
             f"📈 <b>Activo:</b> <code>{display_name}</code>{sub_name}",
             f"⏱ <b>Temporalidad:</b> {notif.timeframe}",
+            f"⏳ <b>Duración Estimada:</b> {duration_est}",
             f"⭐ <b>Confluencia:</b> {notif.score:.0f}/100 [<i>{quality_tag}</i>]",
             "",
             "📍 <b>NIVELES DE OPERACIÓN:</b>",
@@ -200,7 +213,7 @@ class AlertManager:
             "🧠 <b>RAZONES DE ENTRADA:</b>",
             bullets_str,
             "━━━━━━━━━━━━━━━━━━━━━",
-            "🛡️ <i>Gestión sugerida: Arriesgar 1% a 2% de cuenta por trade.</i>"
+            f"🛡️ <i>Gestión: Salir al tocar TP o SL. Si pasan más de {max_holding_rule} sin avance, cerrar o poner SL a precio de entrada.</i>"
         ])
 
         text = "\n".join(lines)
