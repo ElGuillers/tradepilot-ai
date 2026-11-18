@@ -31,6 +31,13 @@ interface ChartPageProps {
   onSelectCrypto?: (symbol: string) => void;
 }
 
+const formatPrice = (p: number) => {
+  if (!p) return '$0.00';
+  if (p >= 100) return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (p >= 1) return `$${p.toFixed(3)}`;
+  return `$${p.toFixed(5)}`;
+};
+
 const getStyleForTimeframe = (tf: Timeframe, currentStyle: TradingStyle): TradingStyle => {
   if (['1m', '3m'].includes(tf)) return 'scalping';
   if (['15m', '30m'].includes(tf)) return 'day_trading';
@@ -455,26 +462,46 @@ export const ChartPage: React.FC<ChartPageProps> = ({
               {/* Levels */}
               {signal.direction !== 'WAIT' && signal.direction !== 'NO_TRADE' && signal.entry_price > 0 ? (
                 <div className="space-y-2 text-xs">
-                  <div className="flex justify-between items-center p-2 rounded bg-slate-800/40 border border-slate-800">
-                    <span className="text-slate-400">Entrada Hipotética:</span>
-                    <span className="font-mono font-bold text-blue-400">${signal.entry_price}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded bg-rose-500/5 border border-rose-500/20">
-                    <span className="text-rose-400 font-semibold">Stop Loss:</span>
-                    <span className="font-mono font-bold text-rose-400">${signal.stop_loss}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded bg-emerald-500/5 border border-emerald-500/20">
-                    <span className="text-emerald-400 font-semibold">Take Profit 1:</span>
-                    <span className="font-mono font-bold text-emerald-400">${signal.take_profit_1}</span>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded bg-emerald-500/5 border border-emerald-500/20">
-                    <span className="text-emerald-400 font-semibold">Take Profit 2:</span>
-                    <span className="font-mono font-bold text-emerald-400">${signal.take_profit_2}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-400 pt-1 text-[11px]">
-                    <span>Ratio R:R:</span>
-                    <span className="font-mono font-bold text-white">1 : {signal.risk_reward}</span>
-                  </div>
+                  {(() => {
+                    const entry = signal.entry_price;
+                    const sl = signal.stop_loss;
+                    const tp1 = signal.take_profit_1;
+                    const tp2 = signal.take_profit_2;
+                    const slPct = entry > 0 && sl > 0 ? Math.abs((sl - entry) / entry * 100) : 0;
+                    const tp1Pct = entry > 0 && tp1 > 0 ? Math.abs((tp1 - entry) / entry * 100) : 0;
+                    const tp2Pct = entry > 0 && tp2 > 0 ? Math.abs((tp2 - entry) / entry * 100) : 0;
+
+                    return (
+                      <>
+                        <div className="flex justify-between items-center p-2 rounded bg-slate-800/40 border border-slate-800">
+                          <span className="text-slate-400">Entrada Hipotética:</span>
+                          <span className="font-mono font-bold text-blue-400">{formatPrice(entry)}</span>
+                        </div>
+                        <div className="flex justify-between items-center p-2 rounded bg-rose-500/5 border border-rose-500/20">
+                          <span className="text-rose-400 font-semibold">Stop Loss:</span>
+                          <span className="font-mono font-bold text-rose-400">
+                            {formatPrice(sl)} <span className="text-[10px] font-normal text-rose-400/80">(-{slPct.toFixed(2)}%)</span>
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center p-2 rounded bg-emerald-500/5 border border-emerald-500/20">
+                          <span className="text-emerald-400 font-semibold">Take Profit 1:</span>
+                          <span className="font-mono font-bold text-emerald-400">
+                            {formatPrice(tp1)} <span className="text-[10px] font-normal text-emerald-400/80">(+{tp1Pct.toFixed(2)}%)</span>
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center p-2 rounded bg-emerald-500/5 border border-emerald-500/20">
+                          <span className="text-emerald-400 font-semibold">Take Profit 2:</span>
+                          <span className="font-mono font-bold text-emerald-400">
+                            {formatPrice(tp2)} <span className="text-[10px] font-normal text-emerald-400/80">(+{tp2Pct.toFixed(2)}%)</span>
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-slate-400 pt-1 text-[11px]">
+                          <span>Ratio R:R:</span>
+                          <span className="font-mono font-bold text-white">1 : {signal.risk_reward}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : (
                 <div className="p-3 rounded-lg bg-slate-800/40 text-center text-xs text-slate-400 leading-relaxed">

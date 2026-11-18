@@ -67,37 +67,78 @@ class SignalEngine:
 
         score_classification = self.scorer.classify_score(score)
 
-        # Calculate hypothetical trade execution levels
+        # Calculate dynamic adaptive trade execution levels (Institutional Volatility Model)
         atr = indicators.atr or (current_price * 0.01)
         entry_price = current_price
 
+        # Timeframe and market adaptive multipliers
+        if timeframe in ["1m", "3m", "5m"]:
+            atr_mult = 1.4
+            max_risk_pct = 0.008  # 0.8% max risk
+            min_risk_pct = 0.003  # 0.3% min risk
+        elif timeframe in ["15m", "30m"]:
+            atr_mult = 1.6
+            max_risk_pct = 0.012  # 1.2% max risk
+            min_risk_pct = 0.005  # 0.5% min risk
+        elif timeframe == "1h":
+            atr_mult = 1.8
+            max_risk_pct = 0.018  # 1.8% max risk
+            min_risk_pct = 0.007  # 0.7% min risk
+        else:
+            atr_mult = 2.0
+            max_risk_pct = 0.035  # 3.5% max risk
+            min_risk_pct = 0.012  # 1.2% min risk
+
+        # Adjust max_risk_pct for lower volatility markets (stocks, gold, forex)
+        if market in ["stocks", "indices"]:
+            max_risk_pct *= 0.75
+            min_risk_pct *= 0.75
+        elif symbol in ["PAXGUSDT", "XAUUSD"]:
+            max_risk_pct *= 0.6  # Gold has tight intraday ranges
+            min_risk_pct *= 0.6
+
+        # Decimal precision helper
+        decimals = 2 if entry_price >= 100 else (4 if entry_price >= 1 else 6)
+
+        default_risk = atr * atr_mult
+        default_risk = max(entry_price * min_risk_pct, min(default_risk, entry_price * max_risk_pct))
+
         if direction == "BUY":
-            # SL below recent swing low or 1.5 * ATR
-            sl_candidate = (structure.swing_low * 0.998) if structure.swing_low and structure.swing_low < entry_price else (entry_price - (1.5 * atr))
-            # Ensure SL is within reasonable bound (max 5% for crypto intraday)
-            stop_loss = max(sl_candidate, entry_price * 0.95)
-            risk = entry_price - stop_loss
-            if risk <= 0:
-                risk = entry_price * 0.015
-                stop_loss = entry_price - risk
+            # If recent swing low is close enough (local structure), use it; otherwise use dynamic ATR
+            if structure.swing_low and structure.swing_low < entry_price:
+                dist = entry_price - (structure.swing_low * 0.998)
+                if dist <= (default_risk * 1.3):
+                    risk = max(entry_price * min_risk_pct, dist)
+                else:
+                    risk = default_risk
+            else:
+                risk = default_risk
 
-            take_profit_1 = round(entry_price + (risk * 1.5), 4)
-            take_profit_2 = round(entry_price + (risk * 2.5), 4)
-            stop_loss = round(stop_loss, 4)
+            # Hard clamp risk to max_risk_pct
+            risk = min(risk, entry_price * max_risk_pct)
+            stop_loss = round(entry_price - risk, decimals)
+            take_profit_1 = round(entry_price + (risk * 1.5), decimals)
+            take_profit_2 = round(entry_price + (risk * 2.5), decimals)
             risk_reward = 1.5
+
         elif direction == "SELL":
-            # SL above recent swing high or 1.5 * ATR
-            sl_candidate = (structure.swing_high * 1.002) if structure.swing_high and structure.swing_high > entry_price else (entry_price + (1.5 * atr))
-            stop_loss = min(sl_candidate, entry_price * 1.05)
-            risk = stop_loss - entry_price
-            if risk <= 0:
-                risk = entry_price * 0.015
-                stop_loss = entry_price + risk
+            # If recent swing high is close enough (local structure), use it; otherwise use dynamic ATR
+            if structure.swing_high and structure.swing_high > entry_price:
+                dist = (structure.swing_high * 1.002) - entry_price
+                if dist <= (default_risk * 1.3):
+                    risk = max(entry_price * min_risk_pct, dist)
+                else:
+                    risk = default_risk
+            else:
+                risk = default_risk
 
-            take_profit_1 = round(entry_price - (risk * 1.5), 4)
-            take_profit_2 = round(entry_price - (risk * 2.5), 4)
-            stop_loss = round(stop_loss, 4)
+            # Hard clamp risk to max_risk_pct
+            risk = min(risk, entry_price * max_risk_pct)
+            stop_loss = round(entry_price + risk, decimals)
+            take_profit_1 = round(entry_price - (risk * 1.5), decimals)
+            take_profit_2 = round(entry_price - (risk * 2.5), decimals)
             risk_reward = 1.5
+
         else:
             stop_loss = 0.0
             take_profit_1 = 0.0
