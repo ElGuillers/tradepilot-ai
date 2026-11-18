@@ -61,7 +61,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {onCloseMobile && (
             <button
               onClick={onCloseMobile}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 md:hidden"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden"
               title="Cerrar Menú"
             >
               <X className="w-5 h-5" />
@@ -114,14 +114,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* Desktop Sticky Sidebar (Visible >= md) */}
-      <aside className="hidden md:flex w-64 bg-slate-900 border-r border-slate-800 flex-col h-screen sticky top-0 shrink-0 z-30">
+      {/* Desktop Sticky Sidebar (Visible >= lg) */}
+      <aside className="hidden lg:flex w-64 bg-slate-900 border-r border-slate-800 flex-col h-screen sticky top-0 shrink-0 z-30">
         {navContent}
       </aside>
 
-      {/* Mobile Slide-Out Drawer (Visible < md when opened) */}
+      {/* Mobile/Tablet Slide-Out Drawer (Visible < lg when opened) */}
       {isOpenMobile && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
+        <div className="fixed inset-0 z-50 lg:hidden flex">
           {/* Backdrop Blur Overlay */}
           <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"

@@ -34,7 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="p-2 -ml-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg md:hidden shrink-0 transition"
+            className="p-2 -ml-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg lg:hidden shrink-0 transition"
             title="Abrir menú lateral"
           >
             <Menu className="w-5 h-5" />

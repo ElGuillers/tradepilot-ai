@@ -90,7 +90,7 @@ export const App: React.FC = () => {
           }}
         />
 
-        <main className="flex-1 p-3 sm:p-6 pb-24 md:pb-6 max-w-7xl w-full mx-auto overflow-x-hidden">
+        <main className="flex-1 p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 max-w-7xl w-full mx-auto overflow-x-hidden">
           {currentTab === 'dashboard' && (
             <DashboardPage
               onNavigate={handleNavigate}
@@ -144,8 +144,8 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar (Fixed for quick one-thumb navigation on smartphones) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 flex items-center justify-around px-1 py-1.5 shadow-2xl safe-area-bottom">
+      {/* Mobile/Tablet Bottom Navigation Bar (Fixed for quick one-thumb navigation on phones & tablets) */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 flex items-center justify-around px-1 py-1.5 shadow-2xl safe-area-bottom">
         {mobileNavItems.map((item) => {
           const Icon = item.icon;
           const active = currentTab === item.id;

@@ -134,50 +134,52 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, select
         </div>
       </div>
 
-      {/* Engine Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Engine Status Cards - Fully responsive without badge overlapping */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {/* Binance Provider */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20">
-              <Radio className="w-5 h-5 animate-pulse" />
+        <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2 shadow-lg min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+            <div className="p-2 sm:p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 border border-emerald-500/20 shrink-0">
+              <Radio className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
             </div>
-            <div>
-              <p className="text-xs text-slate-400">Proveedor de Datos</p>
-              <h4 className="text-sm font-bold text-white">Binance WebSocket + REST</h4>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] sm:text-xs text-slate-400 truncate">Proveedor de Datos</p>
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate">Binance WS + REST</h4>
             </div>
           </div>
-          <StatusBadge type="data_status" value="REALTIME" />
+          <div className="shrink-0 ml-1">
+            <StatusBadge type="data_status" value="REALTIME" />
+          </div>
         </div>
 
         {/* Technical Engine */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20">
-              <Activity className="w-5 h-5" />
+        <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2 shadow-lg min-w-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+            <div className="p-2 sm:p-2.5 bg-blue-500/10 rounded-xl text-blue-400 border border-blue-500/20 shrink-0">
+              <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <p className="text-xs text-slate-400">Motor Cuantitativo</p>
-              <h4 className="text-sm font-bold text-white">6 Factores Ponderados</h4>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] sm:text-xs text-slate-400 truncate">Motor Cuantitativo</p>
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate">6 Factores Ponderados</h4>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          <span className="shrink-0 ml-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 whitespace-nowrap">
             AUTO-SYNC
           </span>
         </div>
 
         {/* AI Engine */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-purple-500/10 rounded-xl text-purple-400 border border-purple-500/20">
-              <Cpu className="w-5 h-5" />
+        <div className="p-3.5 sm:p-4 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2 shadow-lg min-w-0 sm:col-span-2 lg:col-span-1">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+            <div className="p-2 sm:p-2.5 bg-purple-500/10 rounded-xl text-purple-400 border border-purple-500/20 shrink-0">
+              <Cpu className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <p className="text-xs text-slate-400">Inteligencia Artificial</p>
-              <h4 className="text-sm font-bold text-white">Gemini / Reglas Modo Seguro</h4>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] sm:text-xs text-slate-400 truncate">Inteligencia Artificial</p>
+              <h4 className="text-xs sm:text-sm font-bold text-white truncate">Gemini / Reglas Seguras</h4>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+          <span className="shrink-0 ml-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 whitespace-nowrap">
             DISPONIBLE
           </span>
         </div>
@@ -212,15 +214,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate, select
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <p className="text-[10px] text-slate-400">Entrada</p>
-                <p className="font-mono font-bold text-blue-400">${signal.entry_price}</p>
+                <p className="font-mono font-bold text-blue-400">
+                  {signal.entry_price > 0 ? `$${signal.entry_price.toLocaleString()}` : '—'}
+                </p>
               </div>
               <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/20">
                 <p className="text-[10px] text-slate-400">Stop Loss</p>
-                <p className="font-mono font-bold text-rose-400">${signal.stop_loss}</p>
+                <p className="font-mono font-bold text-rose-400">
+                  {signal.stop_loss > 0 ? `$${signal.stop_loss.toLocaleString()}` : 'En espera'}
+                </p>
               </div>
               <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                 <p className="text-[10px] text-slate-400">Take Profit 1</p>
-                <p className="font-mono font-bold text-emerald-400">${signal.take_profit_1}</p>
+                <p className="font-mono font-bold text-emerald-400">
+                  {signal.take_profit_1 > 0 ? `$${signal.take_profit_1.toLocaleString()}` : 'En espera'}
+                </p>
               </div>
             </div>
 

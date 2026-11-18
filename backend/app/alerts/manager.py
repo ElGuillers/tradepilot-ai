@@ -83,11 +83,8 @@ class AlertManager:
         title = ""
 
         # Categorize for Web App feed
-        if breakout in ["BULLISH_BREAKOUT", "BEARISH_BREAKDOWN"] or shift in ["BULLISH_CHANGE", "BEARISH_CHANGE"]:
-            color = "blue"
-            category = "breakout"
-            title = f"💥 Ruptura en {broker_sym} ({signal.timeframe})"
-        elif signal.direction == "BUY" and signal.score >= 50:
+        # 1. Actionable signals (BUY / SELL) with minimum 50 score
+        if signal.direction == "BUY" and signal.score >= 50:
             color = "green"
             category = "buy"
             title = f"🚀 COMPRA en {broker_sym} ({signal.score:.0f} pts)"
@@ -95,7 +92,13 @@ class AlertManager:
             color = "red"
             category = "sell"
             title = f"⚠️ VENTA en {broker_sym} ({signal.score:.0f} pts)"
-        elif signal.direction in ["WAIT", "NO_TRADE"] and signal.score >= 40:
+        # 2. Structural breakouts / shifts (stays in Web App only, never to Telegram unless BUY/SELL >= 70)
+        elif breakout in ["BULLISH_BREAKOUT", "BEARISH_BREAKDOWN"] or shift in ["BULLISH_CHANGE", "BEARISH_CHANGE"]:
+            color = "blue"
+            category = "breakout"
+            title = f"💥 Ruptura en {broker_sym} ({signal.timeframe})"
+        # 3. Market setups in monitoring / wait mode
+        elif signal.direction in ["WAIT", "NO_TRADE"] and signal.score >= 20:
             color = "yellow"
             category = "wait"
             title = f"👀 Monitoreo en {broker_sym} ({signal.score:.0f} pts)"
@@ -142,7 +145,7 @@ class AlertManager:
         # Only sends if direction is BUY or SELL AND score >= min_score (70+)
         # Breakouts and monitoring setups stay in the Web App only, NEVER to Telegram.
         if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID and getattr(settings, "TELEGRAM_AUTO_ALERTS", True):
-            if signal.direction in ["BUY", "SELL"] and signal.score >= min_score and color in ["green", "red"]:
+            if signal.direction in ["BUY", "SELL"] and signal.score >= min_score:
                 await self._send_telegram(notif, signal)
 
     async def _send_telegram(self, notif: AlertNotification, signal: Optional[SignalResponse] = None) -> None:
