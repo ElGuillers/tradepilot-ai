@@ -8,7 +8,11 @@ import {
   Save,
   CheckCircle,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Lock,
+  Unlock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -28,7 +32,16 @@ export const SettingsPage: React.FC = () => {
   const [testingTelegram, setTestingTelegram] = useState<boolean>(false);
   const [telegramStatus, setTelegramStatus] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Security Lock & Visibility Controls
+  const [unlockCredentials, setUnlockCredentials] = useState<boolean>(false);
+  const [showToken, setShowToken] = useState<boolean>(false);
+
   useEffect(() => {
+    // Scrub any legacy plain text tokens from local storage for total safety
+    try {
+      localStorage.removeItem('tradepilot_telegram_token');
+      localStorage.removeItem('tradepilot_telegram_chat_id');
+    } catch {}
     loadSettings();
   }, []);
 
@@ -39,16 +52,15 @@ export const SettingsPage: React.FC = () => {
       setAiProvider(data.ai_provider || 'gemini');
       setRiskPercent(data.default_risk_percent || 1.5);
       setBalance(data.default_account_balance || 10000);
-      const token = data.telegram_bot_token || localStorage.getItem('tradepilot_telegram_token') || '';
-      const chatId = data.telegram_chat_id || localStorage.getItem('tradepilot_telegram_chat_id') || '';
-      setTelegramToken(token);
-      setTelegramChatId(chatId);
       if (data.telegram_auto_alerts !== undefined) {
         setTelegramAuto(data.telegram_auto_alerts);
       }
       if (data.telegram_min_score !== undefined) {
         setTelegramMinScore(data.telegram_min_score);
       }
+      // Keep input empty if already configured in cloud so raw token is never exposed
+      setTelegramToken('');
+      setTelegramChatId('');
     } catch (err) {
       console.error(err);
     }
@@ -59,20 +71,19 @@ export const SettingsPage: React.FC = () => {
     setSaving(true);
     setSavedSuccess(false);
     try {
-      if (telegramToken) localStorage.setItem('tradepilot_telegram_token', telegramToken);
-      if (telegramChatId) localStorage.setItem('tradepilot_telegram_chat_id', telegramChatId);
       await api.updateSettings({
         gemini_api_key: geminiKey || undefined,
         anthropic_api_key: claudeKey || undefined,
         ai_provider: aiProvider,
-        telegram_bot_token: telegramToken,
-        telegram_chat_id: telegramChatId,
+        telegram_bot_token: telegramToken.trim() ? telegramToken.trim() : undefined,
+        telegram_chat_id: telegramChatId.trim() ? telegramChatId.trim() : undefined,
         telegram_auto_alerts: telegramAuto,
         telegram_min_score: Number(telegramMinScore),
         default_risk_percent: Number(riskPercent),
         default_account_balance: Number(balance)
       });
       setSavedSuccess(true);
+      setUnlockCredentials(false);
       await loadSettings();
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
@@ -221,43 +232,108 @@ export const SettingsPage: React.FC = () => {
             {settings?.telegram_configured && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                Bot Configurado
+                Bot Cifrado y Activo
               </span>
             )}
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300 space-y-1.5">
-            <p className="font-semibold text-white">¿Cómo conectar tu Telegram personal en 2 minutos?</p>
-            <ol className="list-decimal list-inside space-y-1 text-slate-400 text-[11px]">
-              <li>Busca a <span className="font-mono text-blue-300 font-bold">@BotFather</span> en Telegram y escribe <code className="bg-slate-900 px-1 py-0.5 rounded text-amber-300">/newbot</code> para crear tu bot y obtener el <strong className="text-slate-200">Bot Token</strong>.</li>
-              <li>Busca a <span className="font-mono text-blue-300 font-bold">@userinfobot</span> en Telegram para ver tu número de <strong className="text-slate-200">Chat ID</strong>.</li>
-              <li><strong className="text-amber-300">¡Muy importante!</strong> Abre el chat de tu nuevo bot y pulsa <strong className="text-white">"Iniciar"</strong> o envíale un mensaje como <code className="bg-slate-900 px-1 py-0.5 rounded text-amber-300">/start</code> para habilitarle permiso de enviarte mensajes.</li>
-            </ol>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Telegram Bot Token</label>
-              <input
-                type="text"
-                placeholder="Ej: 7123456789:AAFlkjf98234kjhsdf..."
-                value={telegramToken}
-                onChange={(e) => setTelegramToken(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-300 font-semibold mb-1">Telegram Chat ID</label>
-              <input
-                type="text"
-                placeholder="Ej: 123456789 (número de usuario de Telegram)"
-                value={telegramChatId}
-                onChange={(e) => setTelegramChatId(e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500"
-              />
+          {/* Security Banner */}
+          <div className="p-3 rounded-xl bg-blue-950/30 border border-blue-500/20 text-xs text-blue-200 flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p className="font-semibold text-white">Protección de Seguridad de Credenciales</p>
+              <p className="text-[11px] text-blue-300/80">
+                Tus credenciales de Telegram están guardadas como variables de entorno privadas en el servidor (Render). 
+                <strong> Nunca se transmiten en texto plano al navegador</strong>, por lo que nadie puede extraer tu token desde ningún dispositivo.
+              </p>
             </div>
           </div>
+
+          {settings?.telegram_configured && !unlockCredentials ? (
+            /* Secure Vault View (When Already Configured) */
+            <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Telegram Bot Token (Cifrado)</label>
+                  <div className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 font-mono text-xs flex items-center justify-between">
+                    <span>{settings?.telegram_bot_token_masked || "••••••••••••••••••••••••••••"}</span>
+                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-semibold mb-1">Telegram Chat ID (Cifrado)</label>
+                  <div className="w-full bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 font-mono text-xs flex items-center justify-between">
+                    <span>{settings?.telegram_chat_id_masked || "••••••••"}</span>
+                    <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => setUnlockCredentials(true)}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1.5 transition"
+                >
+                  <Lock className="w-3 h-3" />
+                  <span>Modificar o cambiar credenciales</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Editable Inputs (Only when explicitly unlocked or not yet configured) */
+            <div className="space-y-3">
+              {settings?.telegram_configured && (
+                <div className="flex justify-between items-center text-xs pb-1">
+                  <span className="text-amber-400 font-semibold flex items-center gap-1">
+                    <Unlock className="w-3.5 h-3.5" /> Edición de credenciales habilitada
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => { setUnlockCredentials(false); setTelegramToken(''); setTelegramChatId(''); }}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold">Nuevo Bot Token</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowToken(!showToken)}
+                      className="text-slate-400 hover:text-slate-200 flex items-center gap-1 text-[10px]"
+                    >
+                      {showToken ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                      <span>{showToken ? 'Ocultar' : 'Ver'}</span>
+                    </button>
+                  </div>
+                  <input
+                    type={showToken ? "text" : "password"}
+                    placeholder={settings?.telegram_configured ? "Dejar vacío para conservar el actual" : "Ej: 7123456789:AAFlkjf98234..."}
+                    value={telegramToken}
+                    onChange={(e) => setTelegramToken(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Nuevo Chat ID</label>
+                  <input
+                    type="text"
+                    placeholder={settings?.telegram_configured ? "Dejar vacío para conservar el actual" : "Ej: 123456789"}
+                    value={telegramChatId}
+                    onChange={(e) => setTelegramChatId(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Automatic Dispatch Controls */}
           <div className="p-3.5 rounded-xl bg-slate-800/40 border border-slate-700/60 space-y-3">

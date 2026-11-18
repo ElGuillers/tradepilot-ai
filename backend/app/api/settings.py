@@ -62,6 +62,14 @@ class SettingsUpdate(BaseModel):
     default_account_balance: Optional[float] = None
 
 
+def mask_secret(val: str, prefix_len: int = 4, suffix_len: int = 4) -> str:
+    if not val:
+        return ""
+    if len(val) <= prefix_len + suffix_len:
+        return "••••••••"
+    return f"{val[:prefix_len]}••••••••••••••••{val[-suffix_len:]}"
+
+
 @router.get("/settings")
 async def get_settings():
     return {
@@ -72,8 +80,8 @@ async def get_settings():
         "gemini_configured": bool(settings.GEMINI_API_KEY),
         "anthropic_configured": bool(settings.ANTHROPIC_API_KEY),
         "telegram_configured": bool(settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID),
-        "telegram_bot_token": settings.TELEGRAM_BOT_TOKEN,
-        "telegram_chat_id": settings.TELEGRAM_CHAT_ID,
+        "telegram_bot_token_masked": mask_secret(settings.TELEGRAM_BOT_TOKEN, 5, 4),
+        "telegram_chat_id_masked": mask_secret(settings.TELEGRAM_CHAT_ID, 2, 2),
         "telegram_auto_alerts": settings.TELEGRAM_AUTO_ALERTS,
         "telegram_min_score": settings.TELEGRAM_MIN_SCORE,
         "default_risk_percent": settings.DEFAULT_RISK_PER_TRADE_PERCENT,
@@ -92,32 +100,44 @@ async def get_settings():
 async def update_settings(update: SettingsUpdate):
     env_updates: Dict[str, str] = {}
 
-    if update.gemini_api_key is not None:
-        settings.GEMINI_API_KEY = update.gemini_api_key
-        ai_manager.gemini_provider.api_key = update.gemini_api_key
-        env_updates["GEMINI_API_KEY"] = update.gemini_api_key
-    if update.anthropic_api_key is not None:
-        settings.ANTHROPIC_API_KEY = update.anthropic_api_key
-        ai_manager.claude_provider.api_key = update.anthropic_api_key
-        env_updates["ANTHROPIC_API_KEY"] = update.anthropic_api_key
+    if update.gemini_api_key is not None and update.gemini_api_key.strip():
+        if not update.gemini_api_key.startswith("••"):
+            settings.GEMINI_API_KEY = update.gemini_api_key.strip()
+            ai_manager.gemini_provider.api_key = update.gemini_api_key.strip()
+            env_updates["GEMINI_API_KEY"] = update.gemini_api_key.strip()
+
+    if update.anthropic_api_key is not None and update.anthropic_api_key.strip():
+        if not update.anthropic_api_key.startswith("••"):
+            settings.ANTHROPIC_API_KEY = update.anthropic_api_key.strip()
+            ai_manager.claude_provider.api_key = update.anthropic_api_key.strip()
+            env_updates["ANTHROPIC_API_KEY"] = update.anthropic_api_key.strip()
+
     if update.ai_provider is not None:
         settings.AI_PROVIDER = update.ai_provider
         env_updates["AI_PROVIDER"] = update.ai_provider
-    if update.telegram_bot_token is not None:
-        settings.TELEGRAM_BOT_TOKEN = update.telegram_bot_token
-        env_updates["TELEGRAM_BOT_TOKEN"] = update.telegram_bot_token
-    if update.telegram_chat_id is not None:
-        settings.TELEGRAM_CHAT_ID = update.telegram_chat_id
-        env_updates["TELEGRAM_CHAT_ID"] = update.telegram_chat_id
+
+    if update.telegram_bot_token is not None and update.telegram_bot_token.strip():
+        if not update.telegram_bot_token.startswith("••"):
+            settings.TELEGRAM_BOT_TOKEN = update.telegram_bot_token.strip()
+            env_updates["TELEGRAM_BOT_TOKEN"] = update.telegram_bot_token.strip()
+
+    if update.telegram_chat_id is not None and update.telegram_chat_id.strip():
+        if not update.telegram_chat_id.startswith("••"):
+            settings.TELEGRAM_CHAT_ID = update.telegram_chat_id.strip()
+            env_updates["TELEGRAM_CHAT_ID"] = update.telegram_chat_id.strip()
+
     if update.telegram_auto_alerts is not None:
         settings.TELEGRAM_AUTO_ALERTS = update.telegram_auto_alerts
         env_updates["TELEGRAM_AUTO_ALERTS"] = str(update.telegram_auto_alerts)
+
     if update.telegram_min_score is not None:
         settings.TELEGRAM_MIN_SCORE = update.telegram_min_score
         env_updates["TELEGRAM_MIN_SCORE"] = str(update.telegram_min_score)
+
     if update.default_risk_percent is not None:
         settings.DEFAULT_RISK_PER_TRADE_PERCENT = update.default_risk_percent
         env_updates["DEFAULT_RISK_PER_TRADE_PERCENT"] = str(update.default_risk_percent)
+
     if update.default_account_balance is not None:
         settings.DEFAULT_ACCOUNT_BALANCE = update.default_account_balance
         env_updates["DEFAULT_ACCOUNT_BALANCE"] = str(update.default_account_balance)
@@ -130,8 +150,8 @@ async def update_settings(update: SettingsUpdate):
 
 @router.post("/settings/test-telegram")
 async def test_telegram(req: TelegramTestRequest):
-    token = req.bot_token or settings.TELEGRAM_BOT_TOKEN
-    chat_id = req.chat_id or settings.TELEGRAM_CHAT_ID
+    token = req.bot_token if (req.bot_token and not req.bot_token.startswith("••")) else settings.TELEGRAM_BOT_TOKEN
+    chat_id = req.chat_id if (req.chat_id and not req.chat_id.startswith("••")) else settings.TELEGRAM_CHAT_ID
 
     if not token or not chat_id:
         raise HTTPException(
