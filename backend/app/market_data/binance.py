@@ -37,12 +37,40 @@ class BinanceMarketDataProvider(BaseMarketDataProvider):
     def supported_markets(self) -> List[str]:
         return ["crypto"]
 
+    async def _request(self, client: httpx.AsyncClient, path: str, params: Optional[Dict[str, Any]] = None) -> httpx.Response:
+        urls = [self.base_url]
+        if "binance.us" not in self.base_url:
+            urls.append("https://api.binance.us")
+        else:
+            urls.append("https://api.binance.com")
+
+        last_resp = None
+        for base in urls:
+            try:
+                url = f"{base}{path}"
+                resp = await client.get(url, params=params)
+                if resp.status_code == 451:
+                    logger.warning(f"Binance geo-bloqueado (451) en {base}, cambiando a alternativa...")
+                    last_resp = resp
+                    continue
+                resp.raise_for_status()
+                if self.base_url != base:
+                    logger.info(f"Binance endpoint actualizado a: {base}")
+                    self.base_url = base
+                return resp
+            except Exception as e:
+                logger.debug(f"Error conectando a {base}: {e}")
+                if last_resp is None and isinstance(e, httpx.HTTPStatusError):
+                    last_resp = e.response
+        if last_resp is not None:
+            return last_resp
+        raise RuntimeError("No se pudo conectar a ningún endpoint de Binance")
+
     async def check_health(self) -> Dict[str, Any]:
         """Check Binance API connectivity."""
-        url = f"{self.base_url}/api/v3/ping"
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                res = await client.get(url)
+                res = await self._request(client, "/api/v3/ping")
                 if res.status_code == 200:
                     return {
                         "provider": self.provider_name,
@@ -75,7 +103,6 @@ class BinanceMarketDataProvider(BaseMarketDataProvider):
         """
         Fetch real-time and historical klines from Binance.
         """
-        url = f"{self.base_url}/api/v3/klines"
         params: Dict[str, Any] = {
             "symbol": symbol.upper(),
             "interval": timeframe,
@@ -87,15 +114,14 @@ class BinanceMarketDataProvider(BaseMarketDataProvider):
             params["endTime"] = end_time
 
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, params=params)
+            resp = await self._request(client, "/api/v3/klines", params=params)
             resp.raise_for_status()
             raw_klines = resp.json()
 
         candles: List[Candle] = []
         total = len(raw_klines)
         for idx, k in enumerate(raw_klines):
-            # Kline format: [open_time, open, high, low, close, volume, close_time, ...]
-            is_closed = idx < (total - 1)  # Last candle is still open/forming
+            is_closed = idx < (total - 1)
             ts = int(k[0])
             candles.append(Candle(
                 timestamp=ts,
@@ -113,9 +139,8 @@ class BinanceMarketDataProvider(BaseMarketDataProvider):
         """
         Fetch 24hr ticker data for curated crypto assets.
         """
-        url = f"{self.base_url}/api/v3/ticker/24hr"
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url)
+            resp = await self._request(client, "/api/v3/ticker/24hr")
             resp.raise_for_status()
             data = resp.json()
 
