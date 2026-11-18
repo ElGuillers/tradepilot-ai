@@ -187,11 +187,17 @@ export const AlertsPopover: React.FC<AlertsPopoverProps> = ({ onSelectAlert }) =
         )}
       </button>
 
-      {/* Popover Card - 100% SOLID OPAQUE BACKGROUND */}
+      {/* Popover Card - Mobile-responsive & centered, desktop right-aligned */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 sm:w-[440px] max-h-[85vh] flex flex-col rounded-2xl bg-[#090d16] border-2 border-slate-700 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] z-[100] overflow-hidden">
-          {/* Header (Solid) */}
-          <div className="p-3.5 border-b border-slate-800 bg-slate-900 flex items-center justify-between">
+        <>
+          {/* Mobile backdrop overlay */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[90] sm:hidden"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="fixed left-2.5 right-2.5 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 w-auto sm:w-[440px] max-h-[82vh] flex flex-col rounded-2xl bg-[#090d16] border-2 border-slate-700 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] z-[100] overflow-hidden">
+            {/* Header (Solid) */}
+            <div className="p-3.5 border-b border-slate-800 bg-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-indigo-400">
                 <Bell className="w-4 h-4" />
@@ -412,7 +418,8 @@ export const AlertsPopover: React.FC<AlertsPopoverProps> = ({ onSelectAlert }) =
             </span>
           </div>
         </div>
-      )}
-    </div>
-  );
+      </>
+    )}
+  </div>
+);
 };
