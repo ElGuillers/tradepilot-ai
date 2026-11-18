@@ -64,9 +64,9 @@ class AlertManager:
 
     async def evaluate_signal_for_alerts(self, signal: SignalResponse) -> None:
         """
-        Evaluates signals for high-probability actionable setups.
-        Filters out noise, ranging chop, and false breakouts.
-        Only dispatches alerts for confirmed BUY or SELL signals with score >= min_score (70+).
+        Evaluates signals for both:
+        1. Web App Real-Time Feed: Shows Rupturas (breakout), Compras (buy), Ventas (sell) and Setups (wait).
+        2. Telegram Broadcast: STRICT VIP FILTER. Only sends confirmed BUY/SELL with score >= min_score (70+).
         """
         now = datetime.now(timezone.utc)
         sym = signal.symbol.upper()
@@ -75,24 +75,39 @@ class AlertManager:
         # Map to broker symbol
         broker_sym = "XAUUSD" if sym == "PAXGUSDT" else ("US500" if sym == "SPY" else ("US100" if sym == "QQQ" else (sym.replace("USDT", "USD") if sym.endswith("USDT") else sym)))
 
-        # STRICT FILTER: Discard noise, NO_TRADE, and low-conviction conditions (< 70 pts)
-        if signal.direction not in ["BUY", "SELL"] or signal.score < min_score:
-            return
+        breakout = signal.indicators.get("structure_breakout", "NONE")
+        shift = signal.indicators.get("structure_shift", "NONE")
 
-        if signal.direction == "BUY":
+        color: Optional[str] = None
+        category: Optional[str] = None
+        title = ""
+
+        # Categorize for Web App feed
+        if breakout in ["BULLISH_BREAKOUT", "BEARISH_BREAKDOWN"] or shift in ["BULLISH_CHANGE", "BEARISH_CHANGE"]:
+            color = "blue"
+            category = "breakout"
+            title = f"💥 Ruptura en {broker_sym} ({signal.timeframe})"
+        elif signal.direction == "BUY" and signal.score >= 50:
             color = "green"
             category = "buy"
             title = f"🚀 COMPRA en {broker_sym} ({signal.score:.0f} pts)"
-        else:
+        elif signal.direction == "SELL" and signal.score >= 50:
             color = "red"
             category = "sell"
             title = f"⚠️ VENTA en {broker_sym} ({signal.score:.0f} pts)"
+        elif signal.direction in ["WAIT", "NO_TRADE"] and signal.score >= 40:
+            color = "yellow"
+            category = "wait"
+            title = f"👀 Monitoreo en {broker_sym} ({signal.score:.0f} pts)"
 
-        # Anti-spam check (minimum 5 minutes between notifications for same symbol + timeframe + direction)
+        if not color or not category:
+            return
+
+        # Anti-spam check (minimum 3 minutes between notifications for same symbol + timeframe + category)
         cache_key = f"{sym}:{signal.timeframe}:{category}"
         if cache_key in self._last_sent_cache:
             delta = (now - self._last_sent_cache[cache_key]).total_seconds()
-            if delta < 300:
+            if delta < 180:
                 return
 
         self._last_sent_cache[cache_key] = now
@@ -118,13 +133,17 @@ class AlertManager:
             read=False
         )
 
+        # 1. ALWAYS save to Web App Notification feed (Visible in web bell & list)
         self._notifications.insert(0, notif)
         if len(self._notifications) > 100:
             self._notifications.pop()
 
-        # Autonomous Telegram Broadcast for Valid High-Probability Trades
+        # 2. Autonomous Telegram Broadcast: STRICT VIP ONLY!
+        # Only sends if direction is BUY or SELL AND score >= min_score (70+)
+        # Breakouts and monitoring setups stay in the Web App only, NEVER to Telegram.
         if settings.TELEGRAM_BOT_TOKEN and settings.TELEGRAM_CHAT_ID and getattr(settings, "TELEGRAM_AUTO_ALERTS", True):
-            await self._send_telegram(notif, signal)
+            if signal.direction in ["BUY", "SELL"] and signal.score >= min_score and color in ["green", "red"]:
+                await self._send_telegram(notif, signal)
 
     async def _send_telegram(self, notif: AlertNotification, signal: Optional[SignalResponse] = None) -> None:
         if not settings.TELEGRAM_BOT_TOKEN or not settings.TELEGRAM_CHAT_ID:

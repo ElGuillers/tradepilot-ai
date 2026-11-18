@@ -8,18 +8,26 @@ import {
   AlertTriangle,
   Clock,
   ShieldCheck,
-  Send
+  Send,
+  Zap,
+  Activity,
+  Flame,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import { api } from '../services/api';
-import { SignalResponse, AlertItem } from '../types';
+import { SignalResponse, AlertItem, AlertNotification } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
+import { getBrokerSymbol } from '../services/brokerSymbols';
 
 export const SignalsPage: React.FC = () => {
   const [history, setHistory] = useState<SignalResponse[]>([]);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [notifications, setNotifications] = useState<AlertNotification[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedSignal, setSelectedSignal] = useState<SignalResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<'feed' | 'history' | 'alerts'>('feed');
 
   // New alert form state
   const [newSymbol, setNewSymbol] = useState<string>('BTCUSDT');
@@ -30,15 +38,16 @@ export const SignalsPage: React.FC = () => {
   const [creating, setCreating] = useState<boolean>(false);
 
   const loadData = async () => {
-    setLoading(true);
     try {
-      const [histData, alertData, settingsData] = await Promise.all([
-        api.getSignalHistory(),
-        api.getAlerts(),
-        api.getSettings().catch(() => null)
+      const [histData, alertData, settingsData, notifData] = await Promise.all([
+        api.getSignalHistory().catch(() => ({ signals: [] })),
+        api.getAlerts().catch(() => []),
+        api.getSettings().catch(() => null),
+        api.getNotifications().catch(() => [])
       ]);
-      setHistory(histData.signals);
-      setAlerts(alertData);
+      setHistory(histData.signals || []);
+      setAlerts(alertData || []);
+      setNotifications(notifData || []);
       if (settingsData) setSettings(settingsData);
     } catch (err) {
       console.error(err);
@@ -49,6 +58,8 @@ export const SignalsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(loadData, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleCreateAlert = async (e: React.FormEvent) => {
@@ -121,67 +132,191 @@ export const SignalsPage: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Signal History */}
+        {/* Left 2 Cols: Main View with Tabs */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <History className="w-4 h-4 text-emerald-400" />
-                Historial de Señales Confirmadas
-              </h3>
-              <span className="text-xs text-slate-400 font-mono">{history.length} registradas</span>
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-4">
+            {/* Header Tabs */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('feed')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    activeTab === 'feed'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Feed en Vivo & Rupturas</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-slate-950/60 text-[10px] font-mono">
+                    {notifications.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('history')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    activeTab === 'history'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <History className="w-3.5 h-3.5" />
+                  <span>Historial</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-slate-950/60 text-[10px] font-mono">
+                    {history.length}
+                  </span>
+                </button>
+              </div>
+
+              <span className="text-[11px] text-slate-400 font-mono hidden sm:inline">
+                Auto-sync cada 15s
+              </span>
             </div>
 
-            {loading ? (
-              <div className="p-8 text-center text-slate-400">Cargando historial de señales...</div>
-            ) : history.length === 0 ? (
-              <div className="p-8 text-center text-slate-400 space-y-2">
-                <p>No hay señales almacenadas aún.</p>
-                <p className="text-xs text-slate-500">
-                  Las señales con puntuación superior a 60 se guardan automáticamente cuando exploras el Dashboard o el Escáner.
-                </p>
+            {/* TAB 1: Live Feed & Rupturas */}
+            {activeTab === 'feed' && (
+              <div className="space-y-3">
+                {loading && notifications.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 text-xs">Escaneando mercado en vivo...</div>
+                ) : notifications.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 space-y-2 text-xs">
+                    <p className="font-semibold text-slate-300">Escáner autónomo activo</p>
+                    <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+                      Las rupturas técnicas, señales de compra/venta y setups en vigilancia aparecerán aquí en cuanto el mercado genere movimiento.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+                    {notifications.map((notif) => {
+                      const isBreakout = notif.category === 'breakout';
+                      const isBuy = notif.category === 'buy';
+                      const isSell = notif.category === 'sell';
+                      const brokerName = getBrokerSymbol(notif.symbol);
+
+                      return (
+                        <div
+                          key={notif.id}
+                          className={`p-3.5 rounded-xl border transition-all ${
+                            isBreakout
+                              ? 'bg-blue-950/20 border-blue-500/30 hover:border-blue-500/50'
+                              : isBuy
+                              ? 'bg-emerald-950/20 border-emerald-500/30 hover:border-emerald-500/50'
+                              : isSell
+                              ? 'bg-rose-950/20 border-rose-500/30 hover:border-rose-500/50'
+                              : 'bg-amber-950/20 border-amber-500/30 hover:border-amber-500/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">
+                                {isBreakout ? '💥' : isBuy ? '🚀' : isSell ? '⚠️' : '👀'}
+                              </span>
+                              <span className="font-bold text-white text-xs">
+                                {brokerName}
+                              </span>
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                                {notif.timeframe}
+                              </span>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                {isBreakout ? 'Ruptura Técnica' : isBuy ? 'Compra' : isSell ? 'Venta' : 'Setup Vigilado'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <StatusBadge type="score" value={notif.score} />
+                            </div>
+                          </div>
+
+                          <p className="text-[11px] text-slate-300 leading-relaxed mb-2 line-clamp-2">
+                            {notif.message}
+                          </p>
+
+                          {/* Levels preview */}
+                          {(notif.entry_price || notif.stop_loss || notif.take_profit_1) && (
+                            <div className="flex items-center gap-3 text-[11px] font-mono pt-2 border-t border-slate-800/80 flex-wrap">
+                              {notif.entry_price && (
+                                <span className="text-slate-300">
+                                  Entrada: <strong className="text-blue-400">${notif.entry_price.toLocaleString()}</strong>
+                                </span>
+                              )}
+                              {notif.stop_loss && (
+                                <span className="text-slate-300">
+                                  SL: <strong className="text-rose-400">${notif.stop_loss.toLocaleString()}</strong>
+                                </span>
+                              )}
+                              {notif.take_profit_1 && (
+                                <span className="text-slate-300">
+                                  TP: <strong className="text-emerald-400">${notif.take_profit_1.toLocaleString()}</strong>
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-800 text-slate-400">
-                      <th className="pb-2.5">Activo</th>
-                      <th className="pb-2.5">TF</th>
-                      <th className="pb-2.5">Dirección</th>
-                      <th className="pb-2.5">Puntuación</th>
-                      <th className="pb-2.5 text-right">Entrada</th>
-                      <th className="pb-2.5 text-right">SL</th>
-                      <th className="pb-2.5 text-right">TP 1</th>
-                      <th className="pb-2.5 text-center">Detalles</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {history.map((sig, i) => (
-                      <tr key={sig.id || i} className="hover:bg-slate-800/40">
-                        <td className="py-2.5 font-mono font-bold text-white">{sig.symbol}</td>
-                        <td className="py-2.5 font-mono text-slate-400">{sig.timeframe}</td>
-                        <td className="py-2.5">
-                          <StatusBadge type="direction" value={sig.direction} />
-                        </td>
-                        <td className="py-2.5">
-                          <StatusBadge type="score" value={sig.score} />
-                        </td>
-                        <td className="py-2.5 text-right font-mono text-white">${sig.entry_price}</td>
-                        <td className="py-2.5 text-right font-mono text-rose-400">${sig.stop_loss}</td>
-                        <td className="py-2.5 text-right font-mono text-emerald-400">${sig.take_profit_1}</td>
-                        <td className="py-2.5 text-center">
-                          <button
-                            onClick={() => setSelectedSignal(sig)}
-                            className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
-                          >
-                            Ver
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            )}
+
+            {/* TAB 2: Confirmed Signal History */}
+            {activeTab === 'history' && (
+              <div>
+                {loading ? (
+                  <div className="p-8 text-center text-slate-400 text-xs">Cargando historial de señales...</div>
+                ) : history.length === 0 ? (
+                  <div className="p-8 text-center text-slate-400 space-y-2 text-xs">
+                    <p>No hay señales almacenadas en base de datos aún.</p>
+                    <p className="text-[11px] text-slate-500">
+                      Las señales con puntuación superior a 60 se guardan automáticamente al explorar los activos.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto -mx-2 sm:mx-0">
+                    <table className="w-full text-left text-xs min-w-[500px]">
+                      <thead>
+                        <tr className="border-b border-slate-800 text-slate-400">
+                          <th className="pb-2.5">Activo</th>
+                          <th className="pb-2.5">TF</th>
+                          <th className="pb-2.5">Dirección</th>
+                          <th className="pb-2.5">Puntuación</th>
+                          <th className="pb-2.5 text-right">Entrada</th>
+                          <th className="pb-2.5 text-right">SL</th>
+                          <th className="pb-2.5 text-right">TP 1</th>
+                          <th className="pb-2.5 text-center">Detalles</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {history.map((sig, i) => (
+                          <tr key={sig.id || i} className="hover:bg-slate-800/40">
+                            <td className="py-2.5 font-mono font-bold text-white">{sig.symbol}</td>
+                            <td className="py-2.5 font-mono text-slate-400">{sig.timeframe}</td>
+                            <td className="py-2.5">
+                              <StatusBadge type="direction" value={sig.direction} />
+                            </td>
+                            <td className="py-2.5">
+                              <StatusBadge type="score" value={sig.score} />
+                            </td>
+                            <td className="py-2.5 text-right font-mono text-white">${sig.entry_price}</td>
+                            <td className="py-2.5 text-right font-mono text-rose-400">${sig.stop_loss}</td>
+                            <td className="py-2.5 text-right font-mono text-emerald-400">${sig.take_profit_1}</td>
+                            <td className="py-2.5 text-center">
+                              <button
+                                onClick={() => setSelectedSignal(sig)}
+                                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium"
+                              >
+                                Ver
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
