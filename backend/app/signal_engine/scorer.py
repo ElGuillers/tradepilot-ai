@@ -80,23 +80,31 @@ class OpportunityScorer:
         rsi = indicators.rsi or 50.0
         macd_hist = indicators.macd_hist or 0.0
         if rsi >= 50 and macd_hist > 0:
-            if 52 <= rsi <= 68:
+            if 50 <= rsi <= 68:
                 mom_score = 90.0
                 mom_reason = f"RSI alcista saludable ({rsi:.1f}) con histograma MACD positivo en expansión."
                 buy_points += self.momentum_weight * 0.9
-            elif rsi > 70:
-                mom_score = 60.0
-                mom_reason = f"RSI en sobrecompra ({rsi:.1f}); confluencia de momentum pero precaución por posible agotamiento."
-                buy_points += self.momentum_weight * 0.6
+            elif 68 < rsi <= 75:
+                mom_score = 75.0
+                mom_reason = f"RSI alcista fuerte ({rsi:.1f}) con histograma MACD positivo."
+                buy_points += self.momentum_weight * 0.75
+            else:
+                mom_score = 55.0
+                mom_reason = f"RSI en sobrecompra ({rsi:.1f}); confluencia alcista con precaución por posible agotamiento."
+                buy_points += self.momentum_weight * 0.55
         elif rsi < 50 and macd_hist < 0:
-            if 32 <= rsi <= 48:
+            if 32 <= rsi <= 50:
                 mom_score = 90.0
                 mom_reason = f"RSI bajista sostenido ({rsi:.1f}) con histograma MACD negativo acelerando."
                 sell_points += self.momentum_weight * 0.9
-            elif rsi < 30:
-                mom_score = 60.0
-                mom_reason = f"RSI en sobreventa ({rsi:.1f}); presión bajista alta pero riesgo de rebote."
-                sell_points += self.momentum_weight * 0.6
+            elif 25 <= rsi < 32:
+                mom_score = 75.0
+                mom_reason = f"RSI bajista fuerte ({rsi:.1f}) con histograma MACD negativo."
+                sell_points += self.momentum_weight * 0.75
+            else:
+                mom_score = 55.0
+                mom_reason = f"RSI en sobreventa ({rsi:.1f}); presión bajista alta con riesgo de rebote."
+                sell_points += self.momentum_weight * 0.55
         factors.append(FactorScore(
             name="Momentum",
             weight=self.momentum_weight,
@@ -114,7 +122,7 @@ class OpportunityScorer:
             vol_reason = f"Volumen relativo destacado ({rel_vol:.2f}x de su media de 20 periodos), confirmando interés institucional."
             if buy_points > sell_points:
                 buy_points += self.volume_weight * 0.9
-            else:
+            elif sell_points > buy_points:
                 sell_points += self.volume_weight * 0.9
         elif rel_vol < 0.7:
             vol_score = 35.0
@@ -122,6 +130,10 @@ class OpportunityScorer:
         else:
             vol_score = 65.0
             vol_reason = f"Volumen normal ({rel_vol:.2f}x) respaldando la liquidez."
+            if buy_points > sell_points:
+                buy_points += self.volume_weight * 0.65
+            elif sell_points > buy_points:
+                sell_points += self.volume_weight * 0.65
         factors.append(FactorScore(
             name="Volumen",
             weight=self.volume_weight,
@@ -168,6 +180,13 @@ class OpportunityScorer:
         elif bb_width < 0.02 and bb_width > 0:
             volat_score = 80.0
             volat_reason = f"Compresión de volatilidad (Squeeze BB {bb_width:.3f}); potencial movimiento inminente."
+
+        # Add volatility contribution to dominant bias when market is trending
+        if buy_points > sell_points and buy_points >= 30:
+            buy_points += (volat_score / 100.0) * self.volatility_weight
+        elif sell_points > buy_points and sell_points >= 30:
+            sell_points += (volat_score / 100.0) * self.volatility_weight
+
         factors.append(FactorScore(
             name="Volatilidad",
             weight=self.volatility_weight,
@@ -197,10 +216,10 @@ class OpportunityScorer:
 
         # Determine direction and total score
         direction = "WAIT"
-        if buy_points >= 65 and buy_points > (sell_points + 20):
+        if buy_points >= 65 and buy_points > (sell_points + 15):
             direction = "BUY"
             final_score = min(buy_points, 100.0)
-        elif sell_points >= 65 and sell_points > (buy_points + 20):
+        elif sell_points >= 65 and sell_points > (buy_points + 15):
             direction = "SELL"
             final_score = min(sell_points, 100.0)
         elif max(buy_points, sell_points) < 40:
@@ -208,7 +227,7 @@ class OpportunityScorer:
             final_score = max(buy_points, sell_points)
         else:
             direction = "WAIT"
-            final_score = (buy_points + sell_points) / 2.0
+            final_score = max(buy_points, sell_points)
 
         final_score = round(final_score, 1)
 
